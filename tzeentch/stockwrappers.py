@@ -2,6 +2,7 @@
 import datetime as dt
 
 import yfinance as yf
+import yahoo_fin.stock_info as si
 
 import pandas as pd
 import numpy as np
@@ -10,12 +11,14 @@ from dataclasses import dataclass
 
 from typing import Optional, Union, Tuple
 
+from ta import add_all_ta_features
 from tensorflow import keras as ks
 
 
 @dataclass
 class StockInfo:
     """simple wrapper for stock information and later evaluation"""
+    handle: str
     ticker: yf.Ticker
     present: pd.DataFrame
 
@@ -82,15 +85,47 @@ class IndexInfo(StockInfo):
         return bollinger_up.to_frame().loc[self.start: self.end], bollinger_down.to_frame().loc[self.start: self.end]
 
     def _calculate_ema(self, days, smoothing=2) -> pd.Series:
-        prices = self.ext_present['Close']
-        ema = [sum(prices[:days]) / days]
-        for price in prices[days:]:
-            ema.append((price * (smoothing / (1 + days))) + ema[-1] * (1 - (smoothing / (1 + days))))
+        if days <= self.n:
+            prices = self.ext_present['Close']
+            ema = [sum(prices[:days]) / days]
+            for price in prices[days:]:
+                ema.append((price * (smoothing / (1 + days))) + ema[-1] * (1 - (smoothing / (1 + days))))
+        else:
+            start_shifted = self.start - dt.timedelta(days=days+5)
+            ext_present = yf.download(self.handle, start_shifted, self.end)
+            prices = ext_present['Close']
+            ema = [sum(prices[:days]) / days]
+            for price in prices[days:]:
+                ema.append((price * (smoothing / (1 + days))) + ema[-1] * (1 - (smoothing / (1 + days))))
+
         return pd.Series(ema[1:])
 
     @property
     def EMA14(self) -> pd.DataFrame:
         toReturn = self._calculate_ema(14).to_frame()
+        toReturn.index = self.present.index
+        return toReturn
+
+    @property
+    def EMA20(self) -> pd.DataFrame:
+        toReturn = self._calculate_ema(14).to_frame()
+        toReturn.index = self.present.index
+        return toReturn
+
+    def _calculate_ma(self, days) -> pd.Series:
+        start_shifted = self.start - dt.timedelta(days=days + 5)
+        ex_present = yf.download(self.handle, start_shifted, self.end)
+        return pd.Series([ex_present['Close'][i - days:i].mean() for i in range(days, ex_present.shape[0] + 1)])
+
+    @property
+    def MA5(self):
+        toReturn = self._calculate_ma(5).to_frame()[1:-1]
+        toReturn.index = self.present.index
+        return toReturn
+
+    @property
+    def MA10(self):
+        toReturn = self._calculate_ma(10).to_frame()
         toReturn.index = self.present.index
         return toReturn
 
@@ -101,7 +136,9 @@ class IndexInfo(StockInfo):
         toReturn['CCI'] = self.cci
         toReturn['ATR'] = self.atr
         toReturn['BOLL_H'], toReturn['BOLL_L'] = self.BOLL
-        toReturn['EMA20'] = self.EMA14
+        toReturn['EMA20'] = self.EMA20
+        toReturn['MA5'] = self.MA5
+        toReturn['MA10'] = self.MA10
 
         return toReturn.loc[self.start: self.end]
 
@@ -125,6 +162,7 @@ class DataSource:
             print("[<] fetched index information ...")
             start_shifted = start - dt.timedelta(days=n)
             return IndexInfo(
+                    handle=stock_handle,
                     ticker=yf.Ticker(stock_handle),
                     present=yf.download(stock_handle, start, end),
                     ext_present=yf.download(stock_handle, start_shifted, end),
@@ -133,6 +171,7 @@ class DataSource:
 
         print("[<] fetched stock information ...")
         return StockInfo(
+                handle=stock_handle,
                 ticker=yf.Ticker(stock_handle),
                 present=yf.download(stock_handle, start, end),
                 start=start,
