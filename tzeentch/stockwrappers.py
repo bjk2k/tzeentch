@@ -7,141 +7,56 @@ import yahoo_fin.stock_info as si
 import pandas as pd
 import numpy as np
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from typing import Optional, Union, Tuple
 
 from ta import add_all_ta_features
-from tensorflow import keras as ks
 
 
-@dataclass
+@dataclass(frozen=True)
 class StockInfo:
     """simple wrapper for stock information and later evaluation"""
     handle: str
-    ticker: yf.Ticker
-    present: pd.DataFrame
-
     start: dt.date
     end: dt.date
 
+    present: pd.DataFrame = field(init=False)
+    ticker: yf.Ticker = field(init=False)
 
-@dataclass
+    def __post_init__(self):
+        object.__setattr__(self, 'ticker', yf.Ticker(self.handle))
+        object.__setattr__(self, 'present', yf.download(self.handle, self.start, self.end))
+
+
+def calculate_technical_ind_index(handle: str, start: dt.date, end: dt.date) -> pd.DataFrame:
+    """fetches the technical indicators for a given Index
+
+    Returns:
+
+    """
+    toReturn: pd.DataFrame = si.get_data(handle).loc[start - dt.timedelta(days=365): end]
+
+    toReturn = add_all_ta_features(
+            toReturn, open="open", high="high", low="low", close="adjclose", volume="volume")
+
+    #add ema20
+
+    from ta.trend import ema_indicator
+
+    indicator_ema20 = ema_indicator(toReturn['close'], window=20, fillna=True)
+
+    return toReturn.loc[start: end]
+
+
+@dataclass(frozen=True)
 class IndexInfo(StockInfo):
     """simple wrapper for stock information and later evaluation"""
+    technical_indicators: pd.DataFrame = field(init=False)
 
-    ext_present: pd.DataFrame
-
-    @property
-    def n(self) -> int:
-        return self.ext_present.shape[0] - self.present.shape[0]
-
-    @property
-    def macd(self) -> pd.DataFrame:
-        exp1 = self.present['Adj Close'].ewm(span=12, adjust=False).mean()
-        exp2 = self.present['Adj Close'].ewm(span=26, adjust=False).mean()
-        macd: pd.Series = exp1 - exp2
-
-        return macd.to_frame()
-
-    @property
-    def mad(self) -> pd.DataFrame:
-        return self.typical_price.rolling(self.n).apply(lambda x: pd.Series(x).mad())
-
-    @property
-    def typical_price(self) -> pd.DataFrame:
-        series: pd.Series = ((self.ext_present['High'] + self.ext_present['Low'] + self.ext_present['Close']) / 3)
-
-        return series.to_frame()
-
-    @property
-    def sma(self) -> pd.DataFrame:
-        return self.typical_price.rolling(self.n).mean()
-
-    @property
-    def cci(self) -> pd.DataFrame:
-        return (self.typical_price - self.sma) / (self.mad * 0.015)
-
-    @property
-    def atr(self) -> pd.DataFrame:
-        high_low = self.ext_present['High'] - self.ext_present['Low']
-        high_close = np.abs(self.ext_present['High'] - self.ext_present['Close'].shift())
-        low_close = np.abs(self.ext_present['Low'] - self.ext_present['Close'].shift())
-
-        ranges = pd.concat([high_low, high_close, low_close], axis=1)
-        true_range = np.max(ranges, axis=1)
-
-        atr = true_range.rolling(14).sum() / 14
-
-        return atr
-
-    @property
-    def BOLL(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        sma = self.ext_present['Close'].rolling(self.n).mean()
-        std = self.ext_present['Close'].rolling(self.n).std()
-        bollinger_up: pd.Series = sma + std * 2  # Calculate top band
-        bollinger_down: pd.Series = sma - std * 2  # Calculate bottom band
-
-        return bollinger_up.to_frame().loc[self.start: self.end], bollinger_down.to_frame().loc[self.start: self.end]
-
-    def _calculate_ema(self, days, smoothing=2) -> pd.Series:
-        if days <= self.n:
-            prices = self.ext_present['Close']
-            ema = [sum(prices[:days]) / days]
-            for price in prices[days:]:
-                ema.append((price * (smoothing / (1 + days))) + ema[-1] * (1 - (smoothing / (1 + days))))
-        else:
-            start_shifted = self.start - dt.timedelta(days=days+5)
-            ext_present = yf.download(self.handle, start_shifted, self.end)
-            prices = ext_present['Close']
-            ema = [sum(prices[:days]) / days]
-            for price in prices[days:]:
-                ema.append((price * (smoothing / (1 + days))) + ema[-1] * (1 - (smoothing / (1 + days))))
-
-        return pd.Series(ema[1:])
-
-    @property
-    def EMA14(self) -> pd.DataFrame:
-        toReturn = self._calculate_ema(14).to_frame()
-        toReturn.index = self.present.index
-        return toReturn
-
-    @property
-    def EMA20(self) -> pd.DataFrame:
-        toReturn = self._calculate_ema(14).to_frame()
-        toReturn.index = self.present.index
-        return toReturn
-
-    def _calculate_ma(self, days) -> pd.Series:
-        start_shifted = self.start - dt.timedelta(days=days + 5)
-        ex_present = yf.download(self.handle, start_shifted, self.end)
-        return pd.Series([ex_present['Close'][i - days:i].mean() for i in range(days, ex_present.shape[0] + 1)])
-
-    @property
-    def MA5(self):
-        toReturn = self._calculate_ma(5).to_frame()[1:-1]
-        toReturn.index = self.present.index
-        return toReturn
-
-    @property
-    def MA10(self):
-        toReturn = self._calculate_ma(10).to_frame()
-        toReturn.index = self.present.index
-        return toReturn
-
-    @property
-    def technical_data(self) -> pd.DataFrame:
-        toReturn: pd.DataFrame = self.ext_present.copy()
-        toReturn['MACD'] = self.macd
-        toReturn['CCI'] = self.cci
-        toReturn['ATR'] = self.atr
-        toReturn['BOLL_H'], toReturn['BOLL_L'] = self.BOLL
-        toReturn['EMA20'] = self.EMA20
-        toReturn['MA5'] = self.MA5
-        toReturn['MA10'] = self.MA10
-
-        return toReturn.loc[self.start: self.end]
-
+    def __post_init__(self):
+        object.__setattr__(self, 'technical_indicators', calculate_technical_ind_index(self.handle, self.start, self.end))
+        super().__post_init__()
 
 
 class DataSource:
@@ -159,20 +74,17 @@ class DataSource:
         """
 
         if "^" in stock_handle:
-            print("[<] fetched index information ...")
-            start_shifted = start - dt.timedelta(days=n)
-            return IndexInfo(
+            _ = IndexInfo(
                     handle=stock_handle,
-                    ticker=yf.Ticker(stock_handle),
-                    present=yf.download(stock_handle, start, end),
-                    ext_present=yf.download(stock_handle, start_shifted, end),
                     start=start,
                     end=end)
+            print("[<] fetched index information ...")
+            return _
 
-        print("[<] fetched stock information ...")
-        return StockInfo(
+        _ = IndexInfo(
                 handle=stock_handle,
-                ticker=yf.Ticker(stock_handle),
-                present=yf.download(stock_handle, start, end),
                 start=start,
                 end=end)
+        print("[<] fetched stock information ...")
+
+        return _
