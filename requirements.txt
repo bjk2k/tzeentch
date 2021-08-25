@@ -3,3 +3,5 @@ pandas~=1.2.4
 numpy~=1.21.2
 dataclasses~=0.8
 ta~=0.7.0
+plotly~=5.2.1
+requests~=2.26.0
