@@ -1,18 +1,21 @@
 """tzeentch main file"""
+
 import datetime as dt
+import os
+
+from dataclasses import dataclass, field
+from typing import Optional, Union
+
+import pandas as pd
+import plotly.graph_objects as go
 
 import yfinance as yf
 import yahoo_fin.stock_info as si
-import plotly.graph_objects as go
-
-import pandas as pd
-import numpy as np
-
-from dataclasses import dataclass, field
-
-from typing import Optional, Union, Tuple
 
 from ta import add_all_ta_features
+
+package_directory = os.path.dirname(os.path.abspath(__file__))
+path_to_libor_data = os.path.join(package_directory, 'data', 'LIBOR_USD.csv')
 
 
 def calculate_technical_ind_index(handle: str, start: dt.date, end: dt.date) -> pd.DataFrame:
@@ -63,7 +66,7 @@ def retrieve_macro_economic_info(start: dt.date, end: dt.date):
     dollar_index = dollar_index.add_prefix('macro_DXY_')
 
     # fetch the london interchange rates from a csv (needs to be updated later as data source)
-    ibor_rates: pd.DataFrame = pd.read_csv("tzeentch/data/LIBOR_USD.csv", parse_dates=[0], index_col='date')
+    ibor_rates: pd.DataFrame = pd.read_csv(path_to_libor_data, parse_dates=[0], index_col='date')
 
     dollar_index['macro_LIBOR_USD'] = ibor_rates['macro_libor_usd'].loc[start: end]
 
