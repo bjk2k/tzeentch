@@ -38,19 +38,27 @@ def make_rnn_model(input_dim, output_dim):
     return model
 
 
-def make_attention_model(input_dim, output_dim):
+def make_attention_model(input_dim, output_dim, rem_state=False, batch_size=10):
     L1 = 256
 
-    input_layer = Input(shape=input_dim, name='Input', )
-    att_layer = MultiHeadAttention(num_heads=8, key_dim=1, name='Multi-Head')(input_layer, input_layer)
-    lstm = LSTM(L1, input_shape=input_dim, return_sequences=True)(att_layer)
+    if rem_state:
+        input_layer = Input(shape=input_dim, name='Input', batch_size=batch_size)
+    else:
+        input_layer = Input(shape=input_dim, name='Input')
+
+    att_layer = MultiHeadAttention(num_heads=8, key_dim=8, name='Multi-Head')(input_layer, input_layer)
+
+    lstm = LSTM(L1, input_shape=input_dim, return_sequences=True, stateful=rem_state)(att_layer)
+    #lstm = CuDNNLSTM(L1, input_shape=input_dim, return_sequences=True)(att_layer)
+
+    lstm = BatchNormalization()(lstm)
     lstm = Dropout(0.2)(lstm)
     lstm = Flatten()(lstm)
     output = Dense(output_dim, activation='softmax')(lstm)
 
     model = Model(inputs=input_layer, outputs=output)
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc'])
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc', 'categorical_crossentropy'])
 
     model.summary()
 

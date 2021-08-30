@@ -3,6 +3,7 @@ from collections import deque
 import numpy as np
 import pywt
 
+
 def sequence_generator(df, TIME_SEQ_LEN, shuffle=True, seed=101):
     sequential_data = []  # this is a list that will CONTAIN the sequences
     queue = deque(
@@ -10,7 +11,7 @@ def sequence_generator(df, TIME_SEQ_LEN, shuffle=True, seed=101):
 
     for i in df.values:  # iterate over the values
         queue.append([n for n in i[:-1]])  # store all but the target
-        if len(queue) == TIME_SEQ_LEN:  # make sure we have 60 sequences!
+        if len(queue) == TIME_SEQ_LEN:  # make sure we have target number of sequences sequences!
 
             # wavelets noise share
             x = np.array(queue)
