@@ -1,10 +1,11 @@
 import random
 from collections import deque
 import numpy as np
+import pandas as pd
 import pywt
 
 
-def sequence_generator(df, TIME_SEQ_LEN, shuffle=True, seed=101):
+def sequence_generator(df: pd.DataFrame, TIME_SEQ_LEN, shuffle=True, seed=101):
     sequential_data = []  # this is a list that will CONTAIN the sequences
     queue = deque(
             maxlen=TIME_SEQ_LEN)  # These will be our actual sequences. They are made with deque, which keeps the maximum length by popping out older values as new ones come in

@@ -7,7 +7,7 @@ def extract_and_preapre_features(seq_len: int,
                         stock_info: StockInfo,
                         feature_colums: List[str],
                         target_columns: List[str], significant_criteria: float = 0.3):
-    input_df: pd.DataFrame = stock_info.technical_indicators.get(feature_colums)
+    input_df: pd.DataFrame = stock_info.technical_indicators.copy(deep=True).get(feature_colums)
 
     # remove index and turn it into normal date
     input_df.dropna(inplace=True)
