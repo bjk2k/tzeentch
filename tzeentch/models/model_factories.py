@@ -38,39 +38,12 @@ def make_rnn_model(input_dim, output_dim):
     return model
 
 
-def make_attention_model(input_dim, output_dim, rem_state=False, batch_size=10):
-    L1 = 256
-
-    if rem_state:
-        input_layer = Input(shape=input_dim, name='Input', batch_size=batch_size)
-    else:
-        input_layer = Input(shape=input_dim, name='Input')
-
-    att_layer = MultiHeadAttention(num_heads=8, key_dim=8, name='Multi-Head')(input_layer, input_layer)
-
-    lstm = LSTM(L1, input_shape=input_dim, return_sequences=True, stateful=rem_state)(att_layer)
-    #lstm = CuDNNLSTM(L1, input_shape=input_dim, return_sequences=True)(att_layer)
-
-    lstm = BatchNormalization()(lstm)
-    lstm = Dropout(0.2)(lstm)
-    lstm = Flatten()(lstm)
-    output = Dense(output_dim, activation='softmax')(lstm)
-
-    model = Model(inputs=input_layer, outputs=output)
-
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc', 'categorical_crossentropy'])
-
-    model.summary()
-
-    return model
-
-
-def make_autoencoder_model(input_dim, output_dim):
-    L1 = 30
-    L2 = 30
-    L3 = 20
-    L4 = 30
-    L5 = 40
+def make_autoencoder_model(input_dim, output_dim, hp):
+    L1 = hp.Int('layer 1', 15, 50, step=1)
+    L2 = hp.Int('layer 2', 20, 60, step=1)
+    L3 = hp.Int('layer 3', 25, 70, step=1)
+    L4 = hp.Int('layer 4', 30, 80, step=1)
+    L5 = hp.Int('layer 5', 40, 90, step=1)
 
     print(input_dim)
 
@@ -85,9 +58,39 @@ def make_autoencoder_model(input_dim, output_dim):
     decoded = Dense(output_dim, activation='linear')(decoded)
 
     autoencoder = Model(input_seq, decoded)
-    autoencoder.compile(optimizer='rmsprop', loss='mse', metrics=['acc'])
+    autoencoder.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
     autoencoder.summary()
 
     encoder = Model(input_seq, encoded)
 
     return encoder, autoencoder
+
+
+def make_attention_model(input_dim, output_dim, hp):
+    L1 = hp.Int('lstm_units', 200, 300, step=4)
+    NUM_HEADS = hp.Int('num_heads', 1, 10, step=1)
+    KEY_DIM = hp.Int('key_dim', 1, 10, step=1)
+    DROPOUT = hp.Float('dropout', min_value=0.05, max_value=0.9, step=0.05)
+    USE_CUDNN = hp.Boolean('use_cudnn')
+
+    input_layer = Input(shape=input_dim, name='Input')
+
+    att_layer = MultiHeadAttention(num_heads=NUM_HEADS, key_dim=KEY_DIM, name='Multi-Head')(input_layer, input_layer)
+
+    if USE_CUDNN:
+        lstm = CuDNNLSTM(L1, input_shape=input_dim, return_sequences=True)(att_layer)
+    else:
+        lstm = LSTM(L1, input_shape=input_dim, return_sequences=True)(att_layer)
+
+    lstm = BatchNormalization()(lstm)
+    lstm = Dropout(DROPOUT)(lstm)
+    lstm = Flatten()(lstm)
+    output = Dense(output_dim, activation='softmax')(lstm)
+
+    model = Model(inputs=input_layer, outputs=output)
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc', 'categorical_crossentropy'])
+
+    model.summary()
+
+    return model

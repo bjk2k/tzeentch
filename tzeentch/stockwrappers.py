@@ -132,6 +132,14 @@ class IndexInfo(StockInfo):
                            self.technical_indicators.join(self.macro_indicators))
 
 
+@dataclass(frozen=True)
+class CurrencyInfo(StockInfo):
+    """simple wrapper for currency information and later evaluation"""
+
+    def __post_init__(self):
+        super().__post_init__()
+
+
 class DataSource:
     """simple wrapper for yfinance stock information evaluation"""
 
@@ -154,6 +162,24 @@ class DataSource:
                     end=end)
             print("[<] fetched index information ...\n")
             return _
+
+        print("[>] requesting stock information ...")
+        _ = IndexInfo(
+                handle=stock_handle,
+                start=start,
+                end=end)
+        print("[<] fetched stock information ...\n")
+
+        return _
+
+    @staticmethod
+    def retrieve_crypto(stock_handle: str, start: Optional[dt.date] = None, end: Optional[dt.date] = None) \
+            -> Union[StockInfo, IndexInfo]:
+        """retrieves stock information form yfinance and creates a :class`StockInfo` dataclass from it
+
+        Returns:
+            dataclass holding current stock information
+        """
 
         print("[>] requesting stock information ...")
         _ = IndexInfo(
