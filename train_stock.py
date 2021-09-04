@@ -80,7 +80,7 @@ encoder, autoencoder = make_autoencoder_model(
         (FUTURE_PERIOD_PREDICT, len(input_columns_autoenc)), len(input_columns_autoenc), hp=encoder_parameters
 )
 attention_model = make_attention_model(
-        (FUTURE_PERIOD_PREDICT, len(input_columns_autoenc)+2), 3, hp=attention_parameters
+        (FUTURE_PERIOD_PREDICT, len(input_columns_autoenc)), 3, hp=attention_parameters
 )
 
 for handle in training_handles:
@@ -147,7 +147,7 @@ for handle in training_handles:
     encoder_log = autoencoder.fit(train_X, train_X,
                                   batch_size=BATCH_SIZE,
                                   validation_split=0.2,
-                                  callbacks=[checkpoint],
+                                  callbacks=[checkpoint, tensorflow.keras.callbacks.EarlyStopping(patience=10)],
                                   epochs=encoder_parameters.values.get('tuner/epochs'))
 
     autoencoder.load_weights(path_to_best_encoder)
@@ -188,8 +188,8 @@ for handle in training_handles:
                                         tensorflow.keras.utils.to_categorical(train_Y, num_classes=None),
                                         batch_size=BATCH_SIZE,
                                         validation_split=0.2,
-                                        callbacks=[checkpoint],
-                                        epochs=attention_parameters.values.get('tuner/epochs'))
+                                        callbacks=[checkpoint, tensorflow.keras.callbacks.EarlyStopping(patience=10)],
+                                        epochs=attention_parameters.values.get('tuner/epochs')*2)
 
     #
     #   Model   -   Attention (Plot)

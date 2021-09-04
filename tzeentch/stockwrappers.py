@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Optional, Union
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -31,18 +32,19 @@ def calculate_technical_ind_index(handle: str, start: dt.date, end: dt.date) -> 
     """
     toReturn: pd.DataFrame = si.get_data(handle).loc[start - dt.timedelta(days=365): end]
 
-    toReturn = add_all_ta_features(
-            toReturn, open="open", high="high", low="low", close="adjclose", volume="volume")
+    with np.errstate(invalid='ignore'):
+        toReturn = add_all_ta_features(
+                toReturn, open="open", high="high", low="low", close="adjclose", volume="volume")
 
-    # add ema20
+        # add ema20
 
-    from ta.trend import ema_indicator
-    from ta.trend import SMAIndicator
+        from ta.trend import ema_indicator
+        from ta.trend import SMAIndicator
 
-    toReturn['trend_ema20'] = ema_indicator(toReturn['close'], window=20, fillna=True)
+        toReturn['trend_ema20'] = ema_indicator(toReturn['close'], window=20, fillna=True)
 
-    toReturn['trend_ma10'] = SMAIndicator(toReturn['close'], window=5, fillna=True)
-    toReturn['trend_ma5'] = SMAIndicator(toReturn['close'], window=5, fillna=True)
+        toReturn['trend_ma10'] = SMAIndicator(toReturn['close'], window=5, fillna=True)
+        toReturn['trend_ma5'] = SMAIndicator(toReturn['close'], window=5, fillna=True)
 
     return toReturn.loc[start: end]
 
@@ -155,20 +157,20 @@ class DataSource:
         """
 
         if "^" in stock_handle or "INDEX" in stock_handle:
-            print("[>] requesting index information ...")
+            print(f"[>] requesting index information for [{stock_handle}] ...")
             _ = IndexInfo(
                     handle=stock_handle,
                     start=start,
                     end=end)
-            print("[<] fetched index information ...\n")
+            print(f"[<] fetched index information for [{stock_handle}] ...\n")
             return _
 
-        print("[>] requesting stock information ...")
+        print(f"[>] requesting stock information [{stock_handle}] ...")
         _ = IndexInfo(
                 handle=stock_handle,
                 start=start,
                 end=end)
-        print("[<] fetched stock information ...\n")
+        print(f"[<] fetched stock information [{stock_handle}] ...\n")
 
         return _
 

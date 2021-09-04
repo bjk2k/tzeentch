@@ -68,7 +68,7 @@ encoder, autoencoder = make_autoencoder_model(
         (FUTURE_PERIOD_PREDICT, len(input_columns_autoenc)), len(input_columns_autoenc), hp=encoder_parameters
 )
 attention_model = make_attention_model(
-        (FUTURE_PERIOD_PREDICT, len(input_columns_autoenc) + 2), 3, hp=attention_parameters
+        (FUTURE_PERIOD_PREDICT, len(input_columns_autoenc)), 3, hp=attention_parameters
 )
 
 for handle in training_handles:
@@ -81,11 +81,6 @@ for handle in training_handles:
 
     from tzeentch.stockwrappers import DataSource
     from tzeentch.stockwrappers import IndexInfo
-
-    # reloads every module at restart of the notebook (technical stuff unimportant)
-    import importlib
-
-    importlib.reload(tzeentch.stockwrappers)
 
     # read index price data from imported data source in a given time frame also give the ticker included in StockInfo
     # another name for convenience
@@ -168,15 +163,16 @@ for handle in training_handles:
     BATCH_SIZE = 60
 
     from tensorflow.keras.callbacks import ModelCheckpoint
+    from tzeentch.callbacks.pushbullet_callback import NotificationCallback
 
     checkpoint = ModelCheckpoint(path_to_best_att,
-                                 monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+                                 monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 
     attention_log = attention_model.fit(encoded_train_X,
                                         tensorflow.keras.utils.to_categorical(train_Y, num_classes=None),
                                         batch_size=BATCH_SIZE,
                                         validation_split=0.2,
-                                        callbacks=[checkpoint],
+                                        callbacks=[checkpoint, NotificationCallback(f"attention_{handle}")],
                                         epochs=attention_parameters.values.get('tuner/epochs'))
 
     #
