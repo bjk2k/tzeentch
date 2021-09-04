@@ -16,23 +16,27 @@ START = dt.datetime.fromisocalendar(2005, 1, 1).date()  # has to be the 1st of J
 END = dt.datetime.fromisocalendar(2021, 1, 1).date()
 
 # FILES
-path_to_best_encoder = os.path.join("models", "autoencoder-lstm_stocks", "val_acc-optimized_enc")
-path_to_best_rnn = os.path.join("models", "autoencoder-lstm_stocks", "val_acc-optimized_rnn")
-path_to_best_att = os.path.join("models", "autoencoder-lstm_stocks", "val_acc-optimized_att")
+path_to_best_encoder = os.path.join("models", "autoencoder-lstm_index", "val_acc-optimized_enc")
+path_to_best_rnn = os.path.join("models", "autoencoder-lstm_index", "val_acc-optimized_rnn")
+path_to_best_att = os.path.join("models", "autoencoder-lstm_index", "val_acc-optimized_att")
 
 # this imports support for hinting types in methods (only interesting for software)
 
 # loading best hyperparameters
 MAX_TUNING_EPOCHS_AENC = 50
 
-path_to_hp_encoder = os.path.join("models", "HPS", "autoencoder", f"hyperparameters_max{MAX_TUNING_EPOCHS_AENC}.json")
-path_to_hp_attention = os.path.join("models", "HPS", "attention", f"hyperparameters_max{MAX_TUNING_EPOCHS_AENC}.json")
+path_to_hp_encoder = os.path.join(
+        "models", "HPS", "autoencoder", f"hyperparameters_max{MAX_TUNING_EPOCHS_AENC}_best.json"
+)
+path_to_hp_attention = os.path.join(
+        "models", "HPS", "attention", f"hyperparameters_max{MAX_TUNING_EPOCHS_AENC}_best.json"
+)
 
 with open(path_to_hp_encoder, 'r') as f:
-  saved_config = json.load(f)
+    saved_config = json.load(f)
 
 with open(path_to_hp_attention, 'r') as f:
-  saved_config_att = json.load(f)
+    saved_config_att = json.load(f)
 
 encoder_parameters = kt.HyperParameters.from_config(saved_config)
 attention_parameters = kt.HyperParameters.from_config(saved_config_att)
@@ -52,8 +56,7 @@ input_columns_autoenc = ['open', 'high', 'low', 'close', 'volume', 'trend_cci', 
 # has to be even
 target_columns = ['close']
 
-training_handles = [#'^IXIC', '^GDAXI', '^N225',
-                    '^GSPC']
+training_handles = ['^GSPC']
 
 #
 #   Model Definitions
@@ -65,7 +68,7 @@ encoder, autoencoder = make_autoencoder_model(
         (FUTURE_PERIOD_PREDICT, len(input_columns_autoenc)), len(input_columns_autoenc), hp=encoder_parameters
 )
 attention_model = make_attention_model(
-        (FUTURE_PERIOD_PREDICT, len(input_columns_autoenc)+2), 3, hp=attention_parameters
+        (FUTURE_PERIOD_PREDICT, len(input_columns_autoenc) + 2), 3, hp=attention_parameters
 )
 
 for handle in training_handles:
@@ -119,7 +122,6 @@ for handle in training_handles:
     #
 
     BATCH_SIZE = 10
-    N_ITER = 50
 
     from tensorflow.keras.callbacks import ModelCheckpoint
 
@@ -128,13 +130,13 @@ for handle in training_handles:
         f"but is {(FUTURE_PERIOD_PREDICT, len(input_columns_autoenc))} != {train_X.shape[1:]}"
 
     checkpoint = ModelCheckpoint(path_to_best_encoder,
-                                 monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+                                 monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
 
     encoder_log = autoencoder.fit(train_X, train_X,
                                   batch_size=BATCH_SIZE,
                                   validation_split=0.2,
                                   callbacks=[checkpoint],
-                                  epochs=N_ITER)
+                                  epochs=encoder_parameters.values.get('tuner/epochs'))
 
     autoencoder.load_weights(path_to_best_encoder)
 
@@ -164,19 +166,18 @@ for handle in training_handles:
     #
 
     BATCH_SIZE = 60
-    N_ITER = 50
 
     from tensorflow.keras.callbacks import ModelCheckpoint
 
     checkpoint = ModelCheckpoint(path_to_best_att,
-                                 monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+                                 monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
 
     attention_log = attention_model.fit(encoded_train_X,
                                         tensorflow.keras.utils.to_categorical(train_Y, num_classes=None),
                                         batch_size=BATCH_SIZE,
                                         validation_split=0.2,
                                         callbacks=[checkpoint],
-                                        epochs=N_ITER)
+                                        epochs=attention_parameters.values.get('tuner/epochs'))
 
     #
     #   Model   -   Attention (Plot)

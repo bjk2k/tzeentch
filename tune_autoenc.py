@@ -8,6 +8,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppress tf warnings
 import datetime as dt
 import matplotlib.pyplot as plt
 
+import pandas as pd
 import tensorflow.python.keras.layers
 
 # PARAMETERS
@@ -99,7 +100,6 @@ for handle in training_handles:
     #
 
     BATCH_SIZE = 10
-    N_ITER = 50
 
     from tensorflow.keras.callbacks import ModelCheckpoint
 
@@ -133,7 +133,7 @@ for handle in training_handles:
             wrapper_autoencoder,
             objective='val_accuracy',
             max_epochs=MAX_TUNING_EPOCHS_AENC,
-            hyperband_iterations=5)
+            hyperband_iterations=3)
 
     tuner.search(train_X, train_X,
                  validation_split=0.2,

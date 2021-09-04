@@ -41,7 +41,6 @@ def make_rnn_model(input_dim, output_dim):
 def make_autoencoder_model(input_dim, output_dim, hp):
     L1 = hp.Int('layer 1', 15, 50, step=1)
     L2 = hp.Int('layer 2', 20, 60, step=1)
-    L3 = hp.Int('layer 3', 25, 70, step=1)
     L4 = hp.Int('layer 4', 30, 80, step=1)
     L5 = hp.Int('layer 5', 40, 90, step=1)
 
@@ -51,7 +50,7 @@ def make_autoencoder_model(input_dim, output_dim, hp):
 
     encoded = Dense(L1, activation='relu', activity_regularizer=regularizers.l2(0))(input_seq)
     encoded = Dense(L2, activation='relu', activity_regularizer=regularizers.l2(0))(encoded)
-    encoded = Dense(L3, activation='relu', activity_regularizer=regularizers.l2(0))(encoded)
+    encoded = Dense(output_dim, activation='relu', activity_regularizer=regularizers.l2(0))(encoded)
 
     decoded = Dense(L4, activation='relu', activity_regularizer=regularizers.l2(0))(encoded)
     decoded = Dense(L5, activation='relu', activity_regularizer=regularizers.l2(0))(decoded)
