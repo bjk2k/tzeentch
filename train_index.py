@@ -172,7 +172,7 @@ for handle in training_handles:
                                         tensorflow.keras.utils.to_categorical(train_Y, num_classes=None),
                                         batch_size=BATCH_SIZE,
                                         validation_split=0.2,
-                                        callbacks=[checkpoint, NotificationCallback(f"attention_{handle}")],
+                                        callbacks=[checkpoint],
                                         epochs=attention_parameters.values.get('tuner/epochs'))
 
     #

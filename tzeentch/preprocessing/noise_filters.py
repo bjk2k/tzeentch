@@ -6,11 +6,14 @@ from tzeentch.stockwrappers import StockInfo
 def extract_and_preapre_features(seq_len: int,
                         stock_info: StockInfo,
                         feature_colums: List[str],
-                        target_columns: List[str], significant_criteria: float = 0.3):
+                        target_columns: List[str],
+                        significant_criteria: float = 0.3,
+                        drop_zero_rows = False):
     input_df: pd.DataFrame = stock_info.technical_indicators.copy(deep=True).get(feature_colums)
 
     # remove index and turn it into normal date
     input_df.dropna(inplace=True)
+    if drop_zero_rows: input_df = input_df[(input_df.T != 0).any()]
     input_df = input_df.apply(pd.to_numeric)
 
     input_df.reset_index(inplace=True)

@@ -67,7 +67,7 @@ symbols = payload[0]['Symbol'].values.tolist()
 
 SYMBOLS_TO_TRAIN = 20
 
-training_handles = ['^GSPC', random.choices(symbols, k=SYMBOLS_TO_TRAIN)]
+training_handles = ['^GSPC'] +  random.choices(symbols, k=SYMBOLS_TO_TRAIN)
 
 print(f"Training on {SYMBOLS_TO_TRAIN} stock symbols: \n {training_handles}")
 #
@@ -94,11 +94,6 @@ for handle in training_handles:
     from tzeentch.stockwrappers import DataSource
     from tzeentch.stockwrappers import IndexInfo
 
-    # reloads every module at restart of the notebook (technical stuff unimportant)
-    import importlib
-
-    importlib.reload(tzeentch.stockwrappers)
-
     # read index price data from imported data source in a given time frame also give the ticker included in StockInfo
     # another name for convenience
     handle_informations: IndexInfo = cast(IndexInfo, DataSource.retrieve_yfinance(handle, start=START, end=END))
@@ -113,7 +108,8 @@ for handle in training_handles:
     input_df, input_df_only_renamed = extract_and_preapre_features(seq_len=FUTURE_PERIOD_PREDICT,
                                                                    stock_info=handle_informations,
                                                                    feature_colums=input_columns_autoenc,
-                                                                   target_columns=target_columns)
+                                                                   target_columns=target_columns,
+                                                                   drop_zero_rows=True)
 
     # apply scaling
     from tzeentch.preprocessing.noise_filters import apply_min_max_scaling
@@ -147,7 +143,7 @@ for handle in training_handles:
     encoder_log = autoencoder.fit(train_X, train_X,
                                   batch_size=BATCH_SIZE,
                                   validation_split=0.2,
-                                  callbacks=[checkpoint, tensorflow.keras.callbacks.EarlyStopping(patience=10)],
+                                  callbacks=[checkpoint],
                                   epochs=encoder_parameters.values.get('tuner/epochs'))
 
     autoencoder.load_weights(path_to_best_encoder)
@@ -180,16 +176,17 @@ for handle in training_handles:
     BATCH_SIZE = 60
 
     from tensorflow.keras.callbacks import ModelCheckpoint
+    from tzeentch.callbacks.pushbullet_callback import NotificationCallback
 
     checkpoint = ModelCheckpoint(path_to_best_att,
-                                 monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+                                 monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 
     attention_log = attention_model.fit(encoded_train_X,
                                         tensorflow.keras.utils.to_categorical(train_Y, num_classes=None),
                                         batch_size=BATCH_SIZE,
                                         validation_split=0.2,
-                                        callbacks=[checkpoint, tensorflow.keras.callbacks.EarlyStopping(patience=10)],
-                                        epochs=attention_parameters.values.get('tuner/epochs')*2)
+                                        callbacks=[checkpoint],
+                                        epochs=attention_parameters.values.get('tuner/epochs'))
 
     #
     #   Model   -   Attention (Plot)
