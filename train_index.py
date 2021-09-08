@@ -163,7 +163,6 @@ for handle in training_handles:
     BATCH_SIZE = 60
 
     from tensorflow.keras.callbacks import ModelCheckpoint
-    from tzeentch.callbacks.pushbullet_callback import NotificationCallback
 
     checkpoint = ModelCheckpoint(path_to_best_att,
                                  monitor='val_acc', verbose=1, save_best_only=True, mode='max')

@@ -16,7 +16,7 @@ from keras_tuner import HyperParameters
 
 # PARAMETERS
 
-START = dt.datetime.fromisocalendar(2005, 1, 1).date()  # has to be the 1st of January of some year
+START = dt.datetime.fromisocalendar(2010, 1, 1).date()  # has to be the 1st of January of some year
 END = dt.datetime.fromisocalendar(2021, 1, 1).date()
 
 # FILES
@@ -176,7 +176,6 @@ for handle in training_handles:
     BATCH_SIZE = 60
 
     from tensorflow.keras.callbacks import ModelCheckpoint
-    from tzeentch.callbacks.pushbullet_callback import NotificationCallback
 
     checkpoint = ModelCheckpoint(path_to_best_att,
                                  monitor='val_acc', verbose=1, save_best_only=True, mode='max')
